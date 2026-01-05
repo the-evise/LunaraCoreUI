@@ -9,6 +9,7 @@ import Button from "@/components/Button";
 import Card from "@/components/Card";
 import ChallengeToast from "@/components/ChallengeToast";
 import {ChapterCard} from "@/components/ChapterCard";
+import ChapterStepper from "@/components/ChapterStepper";
 import Content from "@/components/Content";
 import DashboardCard from "@/components/DashboardCard";
 import EmptySection from "@/components/EmptySection";
@@ -30,6 +31,8 @@ import Roadmap from "@/components/Roadmap";
 import RoadmapCard from "@/components/RoadmapCard";
 import {SectionIndicatorSkeleton} from "@/components/SectionIndicatorSkeleton";
 import SectionTracker from "@/components/SectionTracker";
+import SkillItem from "@/components/SkillItem";
+import SkillItemListCard from "@/components/SkillItemListCard";
 import Subtitle from "@/components/Subtitle";
 import {SwipeDeck} from "@/components/SwipeDeck";
 import TipCard from "@/components/TipsCard";
@@ -125,6 +128,107 @@ const NavigationDemo = () => (
             <NavItem icon="account_circle"/>
         </Navigation>
 );
+
+const ChapterStepperDemo = () => {
+    const [activeStepId, setActiveStepId] = useState("lesson-2");
+    const steps = [
+        {id: "lesson-1", title: "Lesson 1", progressText: "7/7", isCompleted: true},
+        {id: "lesson-2", title: "Lesson 2", progressText: "3/7"},
+        {id: "lesson-3", title: "Lesson 3", progressText: "0/7", isLocked: true},
+    ];
+
+    return (
+        <ChapterStepper
+            heading="In search of discovery"
+            steps={steps}
+            activeStepId={activeStepId}
+            onStepSelect={setActiveStepId}
+        />
+    );
+};
+
+const SkillItemDemo = () => {
+    const skillItems: Array<{
+        id: string;
+        title: string;
+        subtitle: string;
+        grade?: "S" | "A" | "B" | "C" | "D" | "F";
+        icon: string;
+    }> = [
+        {id: "skill-s", title: "Listening", subtitle: "Near-perfect", grade: "S", icon: "graphic_eq"},
+        {id: "skill-a", title: "Reading", subtitle: "Strong", grade: "A", icon: "menu_book"},
+        {id: "skill-b", title: "Vocabulary", subtitle: "On track", grade: "B", icon: "auto_stories"},
+        {id: "skill-c", title: "Grammar", subtitle: "Needs polish", grade: "C", icon: "edit_note"},
+        {id: "skill-d", title: "Pronunciation", subtitle: "Early progress", grade: "D", icon: "record_voice_over"},
+        {id: "skill-f", title: "Writing", subtitle: "Restart focus", grade: "F", icon: "draw"},
+        {id: "skill-empty", title: "Review", subtitle: "No grade yet", icon: "history"},
+    ];
+
+    return (
+        <div className="space-y-3">
+            {skillItems.map((item) => (
+                <SkillItem
+                    key={item.id}
+                    title={item.title}
+                    subtitle={item.subtitle}
+                    grade={item.grade}
+                    icon={<span className="material-symbols-rounded text-xl">{item.icon}</span>}
+                />
+            ))}
+        </div>
+    );
+};
+
+const SkillItemListCardDemo = () => {
+    const [activeSkillId, setActiveSkillId] = useState("skill-a");
+    const skills = [
+        {
+            id: "skill-a",
+            title: "Reading",
+            subtitle: "Active lesson",
+            grade: "A" as const,
+            icon: <span className="material-symbols-rounded text-xl">menu_book</span>,
+        },
+        {
+            id: "skill-b",
+            title: "Vocabulary",
+            subtitle: "Word bank",
+            grade: "B" as const,
+            icon: <span className="material-symbols-rounded text-xl">auto_stories</span>,
+        },
+        {
+            id: "skill-c",
+            title: "Grammar",
+            subtitle: "Practice set",
+            grade: "C" as const,
+            icon: <span className="material-symbols-rounded text-xl">edit_note</span>,
+        },
+        {
+            id: "skill-empty",
+            title: "Speaking",
+            subtitle: "Not graded",
+            icon: <span className="material-symbols-rounded text-xl">forum</span>,
+        },
+        {
+            id: "skill-locked",
+            title: "Writing",
+            subtitle: "Locked",
+            grade: "F" as const,
+            disabled: true,
+            icon: <span className="material-symbols-rounded text-xl">draw</span>,
+        },
+    ];
+
+    return (
+        <SkillItemListCard
+            title="Skill Overview"
+            skills={skills}
+            activeSkillId={activeSkillId}
+            onSkillSelect={setActiveSkillId}
+            footer={<span className="text-sm text-space-500">Tap a skill to continue.</span>}
+        />
+    );
+};
 
 function App() {
     const primaryLesson = lessons[0];
@@ -236,6 +340,21 @@ function App() {
                     onLessonClick={(lessonId) => console.log("open", lessonId)}
                 />
             ),
+        },
+        {
+            id: "chapter-stepper",
+            label: "ChapterStepper",
+            preview: <ChapterStepperDemo/>,
+        },
+        {
+            id: "skill-item",
+            label: "SkillItem",
+            preview: <SkillItemDemo/>,
+        },
+        {
+            id: "skill-item-list-card",
+            label: "SkillItemListCard",
+            preview: <SkillItemListCardDemo/>,
         },
         {
             id: "content",
@@ -533,8 +652,9 @@ function App() {
     ];
 
     const allSectionIds = demoSections.map((section) => section.id);
+    const defaultEnabledSections = new Set(["chapter-stepper", "skill-item", "skill-item-list-card"]);
     const [enabledSections, setEnabledSections] = useState<Record<string, boolean>>(
-        () => Object.fromEntries(allSectionIds.map((id) => [id, true])),
+        () => Object.fromEntries(allSectionIds.map((id) => [id, defaultEnabledSections.has(id)])),
     );
 
     const handleToggleSection = (sectionId: string) => {

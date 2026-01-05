@@ -27,12 +27,24 @@ const badgeVariants = cva(
                 lg: "h-[54px] w-[90px] text-[36px] font-black rounded-xl",
                 md: "h-[40px] w-[74px] text-xl font-black rounded-lg",
                 sm: "h-[36px] w-[60px] text-xl font-black rounded-lg",
+                item: "size-[48px] text-[30px] font-normal rounded-full"
             },
         },
         compoundVariants: [
             {
                 type: "grade",
                 className: "",
+            },
+            {
+                type: "grade",
+                size: "item",
+                className: "bg-transparent border-none",
+            },
+            {
+                type: "grade",
+                size: "item",
+                grade: "S",
+                className: "!bg-emerald-400 border-none",
             },
             {
                 type: "time",

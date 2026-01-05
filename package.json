@@ -26,6 +26,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@heroicons/react": "^2.1.5",
     "@lunara/tailwind": "workspace:*",
     "class-variance-authority": "^0.7.1",
     "material-symbols": "^0.36.2"
