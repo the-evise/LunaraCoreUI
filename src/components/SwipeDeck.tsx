@@ -2,7 +2,7 @@
 
 import * as motion from "motion/react-client";
 import { AnimatePresence, usePresenceData, wrap } from "motion/react";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "../utils/cn";
 
 export interface SwipeDeckProps<T> {
@@ -25,26 +25,41 @@ export function SwipeDeck<T>({
                                  previewLeft,
                                  previewRight,
                                  placeholderColor = "rgba(255,255,255,0.6)",
-                             }: SwipeDeckProps<T>) {
+                              }: SwipeDeckProps<T>) {
     const [isTransitioning, setIsTransitioning] = useState(false);
+    const [direction, setDirection] = useState<1 | -1>(1);
+    const transitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const hasItems = items.length > 0;
+    const activeWrappedIndex = hasItems ? wrap(0, items.length, activeIndex) : 0;
+    const activeItem = hasItems ? items[activeWrappedIndex] : undefined;
+
+    useEffect(() => {
+        return () => {
+            if (transitionTimerRef.current) {
+                clearTimeout(transitionTimerRef.current);
+            }
+        };
+    }, []);
 
     const setSlide = useCallback(
         (dir: 1 | -1) => {
-            if (isTransitioning) return;
+            if (!hasItems || isTransitioning) return;
             setIsTransitioning(true);
+            setDirection(dir);
 
             const next = wrap(0, items.length, activeIndex + dir);
-            console.log(next);
 
-            // Delay change to sync with exit animation
-            setTimeout(() => {
+            if (transitionTimerRef.current) {
+                clearTimeout(transitionTimerRef.current);
+            }
+            transitionTimerRef.current = setTimeout(() => {
                 onChange(next);
                 setIsTransitioning(false);
+                transitionTimerRef.current = null;
             }, 280);
         },
-        [activeIndex, items.length, onChange, isTransitioning]
+        [activeIndex, hasItems, isTransitioning, items.length, onChange]
     );
-    console.log(isTransitioning);
 
     return (
         <div className="relative flex w-full items-center justify-center overflow-hidden">
@@ -53,15 +68,17 @@ export function SwipeDeck<T>({
 
             {/* Active animated card */}
             <div className="relative" style={{ width: cardWidth }}>
-                <AnimatePresence custom={1}  initial={false}>
-                    <Slide
-                        key={activeIndex}
-                        item={items[activeIndex]}
-                        renderCard={renderCard}
-                        onSwipeLeft={() => setSlide(1)}
-                        onSwipeRight={() => setSlide(-1)}
-                        placeholderColor={placeholderColor}
-                    />
+                <AnimatePresence custom={direction} initial={false}>
+                    {activeItem !== undefined ? (
+                        <Slide
+                            key={activeWrappedIndex}
+                            item={activeItem}
+                            renderCard={renderCard}
+                            onSwipeLeft={() => setSlide(1)}
+                            onSwipeRight={() => setSlide(-1)}
+                            placeholderColor={placeholderColor}
+                        />
+                    ) : null}
                 </AnimatePresence>
             </div>
 
@@ -89,7 +106,6 @@ function Slide<T>({
 
     return (
         <motion.div
-            key={String(item)}
             layout={false}
             drag="x"
             dragElastic={0.2}

@@ -1,5 +1,6 @@
 import * as React from "react";
 import Badge, {type BadgeProps} from "./Badge";
+import Icon, { type IconWeight } from "./Icon";
 
 type BadgeGrade = NonNullable<Extract<BadgeProps, {type: "grade"}>["grade"]>;
 
@@ -9,8 +10,10 @@ export type SkillItemProps = {
     title: string;
     grade?: SkillGrade;
 
-    /** Icon element (SVG/component) */
-    icon?: React.ReactNode;
+    /** Material icon name */
+    icon?: string;
+    iconWeight?: IconWeight;
+    iconFill?: boolean;
 
     /** Optional secondary text (not shown in screenshot, useful later) */
     subtitle?: string;
@@ -19,48 +22,84 @@ export type SkillItemProps = {
     onClick?: () => void;
 
     /** Disabled state */
-    disabled?: boolean;
+    disabled?: boolean | "LOCKED";
+
+    /** Render skeleton placeholder */
+    isLoading?: boolean;
 
     /** Optional id for testing */
     id?: string;
 };
 
-export default function SkillItem({
-                                      title,
-                                      grade,
-                                      icon,
-                                      subtitle,
-                                      onClick,
-                                      disabled = false,
-                                      id,
-                                  }: SkillItemProps) {
-    const isClickable = !!onClick && !disabled;
-    const badgeGrade = grade;
-    const gradeBackground: Record<BadgeGrade | "empty", string> = {
-        S: "bg-emerald-10",
-        A: "bg-emerald-10",
-        B: "bg-emerald-10",
-        C: "bg-space-50",
-        D: "bg-persianred-10",
-        F: "bg-persianred-50",
-        empty: "bg-space-50",
-    };
-    const backgroundClass = gradeBackground[badgeGrade ?? "empty"];
-    const badgeAriaLabel = badgeGrade ? `Grade ${badgeGrade}` : "No grade";
+const GRADE_BACKGROUND: Record<BadgeGrade | "empty", string> = {
+    S: "bg-emerald-10",
+    A: "bg-emerald-10",
+    B: "bg-emerald-10",
+    C: "bg-space-50",
+    D: "bg-persianred-10",
+    F: "bg-persianred-50",
+    empty: "bg-space-50",
+};
+
+function SkillItemComponent({
+    title,
+    grade,
+    icon,
+    iconWeight,
+    iconFill = false,
+    subtitle,
+    onClick,
+    disabled = false,
+    isLoading = false,
+    id,
+}: SkillItemProps) {
+    if (isLoading) {
+        return (
+            <div
+                id={id}
+                className="w-full min-w-[300px] flex h-[62px] items-center justify-between gap-4 rounded-full border border-space-100/60 bg-space-50/60 px-3 animate-pulse"
+                aria-live="polite"
+                aria-busy="true"
+            >
+                <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-full bg-space-100" />
+                    <div className="space-y-2">
+                        <div className="h-3 w-28 rounded-full bg-space-150" />
+                        <div className="h-3 w-20 rounded-full bg-space-100" />
+                    </div>
+                </div>
+                <div className="h-7 w-10 rounded-full bg-space-100" />
+            </div>
+        );
+    }
+
+    const isLocked = disabled === "LOCKED";
+    const isDisabled = disabled === true || isLocked;
+    const isClickable = !!onClick && !isDisabled;
+    const resolvedGrade = grade ?? "empty";
+    const backgroundClass = GRADE_BACKGROUND[resolvedGrade];
+    const badgeAriaLabel = isLocked
+        ? grade
+            ? `Locked, Grade ${grade}`
+            : "Locked"
+        : grade
+            ? `Grade ${grade}`
+            : "No grade";
 
     return (
         <button
             id={id}
             type="button"
-            onClick={onClick}
+            onClick={isClickable ? onClick : undefined}
             disabled={!isClickable}
             className={[
-                "w-full",
+                "w-full min-w-[300px]",
                 "flex items-center justify-between gap-4",
-                "rounded-full border",
+                "rounded-full border border-space-150 hover:border-celestialblue-400",
                 "px-1.5 py-1.5",
                 "text-left",
-                " disabled:cursor-not-allowed",
+                "disabled:hover:border-space-100 transition-colors ease-in-out duration-200 transition-transform",
+                "cursor-pointer active:scale-[0.98] disabled:active:scale-100",
                 backgroundClass,
             ].join(" ")}
             aria-disabled={!isClickable || undefined}
@@ -69,13 +108,20 @@ export default function SkillItem({
             <div className="flex items-center gap-3">
                 <div
                     className={[
-                        "h-12 w-12 rounded-full border",
+                        "h-12 w-12 rounded-full border border-space-100",
                         "flex items-center justify-center",
                         "shrink-0",
                     ].join(" ")}
                     aria-hidden="true"
                 >
-                    {icon}
+                    {icon ? (
+                        <Icon
+                            name={icon}
+                            size="lg"
+                            weight={iconWeight}
+                            isFill={iconFill}
+                        />
+                    ) : null}
                 </div>
 
                 {/* Center: title (+ optional subtitle) */}
@@ -89,8 +135,10 @@ export default function SkillItem({
 
             {/* Right: grade */}
             <div className="shrink-0" aria-label={badgeAriaLabel}>
-                {badgeGrade ? (
-                    <Badge type="grade" grade={badgeGrade} size="item" />
+                {isLocked ? (
+                    <Badge type="locked" size="item" />
+                ) : grade ? (
+                    <Badge type="grade" grade={grade} size="item" />
                 ) : (
                     <Badge type="empty" size="item" />
                 )}
@@ -98,3 +146,19 @@ export default function SkillItem({
         </button>
     );
 }
+
+const SkillItem = React.memo(SkillItemComponent, (prev, next) => (
+    prev.id === next.id &&
+    prev.title === next.title &&
+    prev.subtitle === next.subtitle &&
+    prev.grade === next.grade &&
+    prev.icon === next.icon &&
+    prev.iconWeight === next.iconWeight &&
+    prev.iconFill === next.iconFill &&
+    prev.disabled === next.disabled &&
+    prev.isLoading === next.isLoading &&
+    prev.onClick === next.onClick
+));
+SkillItem.displayName = "SkillItem";
+
+export default SkillItem;

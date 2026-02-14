@@ -31,6 +31,101 @@
     }
 }
 
+@layer components {
+    .lesson-panel-shell {
+        width: 100%;
+        max-width: 50rem;
+        margin-inline: auto;
+    }
+
+    @media (min-width: 1280px) {
+        .lesson-panel-shell {
+            max-width: 56rem;
+        }
+    }
+
+    @media (min-width: 1536px) {
+        .lesson-panel-shell {
+            max-width: 60rem;
+        }
+    }
+
+    .chapter-stepper-root {
+        container-type: inline-size;
+        container-name: chapter-stepper;
+    }
+
+    .chapter-stepper__tabs {
+        width: max-content;
+        min-width: 100%;
+        align-items: stretch;
+    }
+
+    .chapter-stepper__separator {
+        flex: 0 0 auto;
+    }
+
+    .chapter-stepper__tab:focus-visible {
+        outline: none;
+        box-shadow:
+            0 0 0 2px var(--color-celestialblue-300),
+            0 0 0 4px var(--color-space-10);
+    }
+
+    .dashboard-card {
+        container-type: size;
+        max-width: 446px;
+        min-width: 360px;
+        height: 400px;
+        container-name: dashboard-card;
+    }
+
+    .quiz-card-root {
+        width: 100%;
+        container-type: inline-size;
+        container-name: quiz-card;
+    }
+
+    .quiz-card-shell {
+        width: 100%;
+        max-width: 50rem;
+        margin-inline: auto;
+    }
+
+    @container (max-width: 400px) {
+        .dashboard-card__icon {
+            display: none !important;
+        }
+    }
+
+    @container quiz-card (max-width: 1023px) {
+        .quiz-card-shell {
+            max-width: 42rem;
+        }
+    }
+
+    @container quiz-card (max-width: 767px) {
+        .quiz-card-shell {
+            width: 100cqw;
+            max-width: 100cqw;
+            min-width: 0;
+        }
+    }
+}
+
+@media (max-width: 767px) {
+    .quiz-card-root.quiz-card-root--mobile-full {
+        width: 100vw;
+        max-width: 100vw;
+        margin-inline: calc(50% - 50vw);
+    }
+
+    .quiz-card-root.quiz-card-root--mobile-full .quiz-card-shell {
+        width: 100%;
+        max-width: 100%;
+    }
+}
+
 
 html {
     overflow-y: scroll;

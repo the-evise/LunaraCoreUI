@@ -41,9 +41,11 @@ export interface Review {
 }
 
 export interface QuizQuestion {
+    id?: string;
     question: string;
     options: string[];
-    correctIndex: number;
+    optionIds?: string[];
+    correctIndex?: number;
 }
 
 export interface QuizData {

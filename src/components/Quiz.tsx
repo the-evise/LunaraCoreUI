@@ -1,4 +1,4 @@
-import {cva, type VariantProps} from "class-variance-authority";
+﻿import {cva, type VariantProps} from "class-variance-authority";
 import "material-symbols";
 import React, {
     Children,
@@ -116,11 +116,13 @@ export const Question = Object.assign(QuestionBase, {Blank});
 
 interface AnswerSelection {
     label: string;
-    isCorrect: boolean;
+    optionIndex: number;
+    optionId?: string;
+    isCorrect: boolean | null;
 }
 
 interface AnswerOptionsContextValue {
-    correctIndex: number;
+    correctIndex: number | null;
     selectedIndex: number | null;
     selectOption: (index: number, label: string) => void;
     mode: "quiz" | "review";
@@ -143,6 +145,7 @@ const optionVariants = cva(
         variants: {
             tone: {
                 idle: "cursor-pointer",
+                selected: "",
                 correct: "",
                 incorrect: "",
             },
@@ -165,7 +168,13 @@ const optionVariants = cva(
             },
             {
                 mode: "quiz",
-                tone: ["correct", "incorrect"], // ✅ both treated as "selected"
+                tone: "selected",
+                class:
+                    "border-saffron-300 bg-saffron-50 text-saffron-800 [&>span:last-child]:text-saffron-400",
+            },
+            {
+                mode: "quiz",
+                tone: ["correct", "incorrect"], // âœ… both treated as "selected"
                 class:
                     "border-saffron-300 bg-saffron-50 text-saffron-800 [&>span:last-child]:text-saffron-400",
             },
@@ -176,6 +185,12 @@ const optionVariants = cva(
                 tone: "idle",
                 class:
                     "border-space-100 bg-space-10 text-space-700 hover:border-space-200 hover:text-space-800 [&>span:last-child]:text-space-200 hover:[&>span:last-child]:text-space-250",
+            },
+            {
+                mode: "review",
+                tone: "selected",
+                class:
+                    "border-space-200 bg-space-50 text-space-800 [&>span:last-child]:text-space-300",
             },
             {
                 mode: "review",
@@ -200,7 +215,7 @@ const optionVariants = cva(
 
 
 interface AnswerOptionProps {
-    correctIndex: number;
+    correctIndex?: number | null;
     children: ReactNode;
     className?: string;
     onAnswer: (result: AnswerSelection) => void;
@@ -225,20 +240,22 @@ function Option({
         throw new Error("AnswerOptions.Option expects an index.");
     }
 
+    const resolvedCorrectIndex =
+        typeof correctIndex === "number" && correctIndex > 0 ? correctIndex : null;
+    const hasCorrectIndex = resolvedCorrectIndex !== null;
     const isSelected = selectedIndex === optionIndex;
-    const isCorrect = correctIndex === optionIndex;
+    const isCorrect = hasCorrectIndex && resolvedCorrectIndex === optionIndex;
 
     // Determine tone based on mode and selection logic
-    const tone: VariantProps<typeof optionVariants>["tone"] =
-        mode === "review"
-            ? isSelected
-                ? isCorrect
-                    ? "correct"
-                    : "incorrect"
-                : "idle"
-            : isSelected
-                ? "correct" // ✅ use correct to trigger saffron "selected" state in quiz mode
-                : "idle";
+    const tone: VariantProps<typeof optionVariants>["tone"] = (() => {
+        if (!hasCorrectIndex) {
+            return isSelected ? "selected" : "idle";
+        }
+        if (mode === "review") {
+            return isSelected ? (isCorrect ? "correct" : "incorrect") : "idle";
+        }
+        return isSelected ? "correct" : "idle";
+    })();
 
 
     const label =
@@ -261,12 +278,13 @@ function Option({
 }
 
 interface AnswerOptionsProps {
-    correctIndex: number;
+    correctIndex?: number | null;
     children: ReactNode;
     className?: string;
     onAnswer?: (result: AnswerSelection) => void;
     mode?: "quiz" | "review";
     disabled?: boolean;
+    optionIds?: string[];
 }
 
 function AnswerOptionsBase({
@@ -276,21 +294,27 @@ function AnswerOptionsBase({
                                onAnswer,
                                mode = "quiz",
                                disabled = false,
+                               optionIds,
                            }: AnswerOptionsProps,
                            ref: React.Ref<{ selectByKey: (index: number) => void }>
 ) {
     const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+    const resolvedCorrectIndex =
+        typeof correctIndex === "number" && correctIndex > 0 ? correctIndex : null;
 
     const selectOption = useCallback(
         (index: number, label: string) => {
             if (disabled) return;
             setSelectedIndex(index);
+            const optionId = optionIds?.[index - 1];
             onAnswer?.({
                 label,
-                isCorrect: index === correctIndex,
+                optionIndex: index,
+                optionId,
+                isCorrect: resolvedCorrectIndex ? index === resolvedCorrectIndex : null,
             });
         },
-        [correctIndex, onAnswer],
+        [disabled, onAnswer, optionIds, resolvedCorrectIndex],
     );
 
     // expose selection to parent (Quiz)
@@ -304,8 +328,8 @@ function AnswerOptionsBase({
     }));
 
     const contextValue = useMemo(
-        () => ({correctIndex, selectedIndex, selectOption, mode, disabled}),
-        [correctIndex, selectedIndex, selectOption, mode, disabled],
+        () => ({correctIndex: resolvedCorrectIndex, selectedIndex, selectOption, mode, disabled}),
+        [resolvedCorrectIndex, selectedIndex, selectOption, mode, disabled],
     );
     const enhancedChildren = Children.map(children, (child, i) => isValidElement(child)
         ? cloneElement(child as ReactElement<OptionProps>, {optionIndex: i + 1})
@@ -341,7 +365,7 @@ type AlertStatus = VariantProps<typeof alertVariants>["status"];
 
 interface AlertProps {
     status: AlertStatus;
-    message?: ReactNode; // ✅ Accept ReactNode, not only string
+    message?: ReactNode; // âœ… Accept ReactNode, not only string
 }
 
 function Alert({status, message}: AlertProps) {
@@ -362,13 +386,23 @@ function Alert({status, message}: AlertProps) {
 
 type QuizMode = "review" | "quiz";
 
+export interface QuizAnswerSelection {
+    label: string;
+    optionIndex: number;
+    optionId?: string;
+    isCorrect: boolean | null;
+}
+
+export type QuizAnswerState = Record<number, QuizAnswerSelection>;
+
 interface QuizProps {
     data: QuizData;          // quiz data model
     mode?: QuizMode;     // controls behavior
     onComplete?: (score: number) => void; // optional callback
+    onAnswerChange?: (answers: QuizAnswerState) => void;
 }
 
-function Quiz({data, mode = "quiz", onComplete}: QuizProps) {
+function Quiz({data, mode = "quiz", onComplete, onAnswerChange}: QuizProps) {
     const [currentIndex, setCurrentIndex] = useState<number>(0);
     const [displayedIndex, setDisplayedIndex] = useState(0);
     const [isTransitioning, setIsTransitioning] = useState(false);
@@ -414,10 +448,14 @@ function Quiz({data, mode = "quiz", onComplete}: QuizProps) {
 
     const handleAnswer = useCallback(
         (res: AnswerSelection) => {
-            setAnswers((prev) => ({
-                ...prev,
-                [displayedIndex]: {label: res.label, isCorrect: res.isCorrect},
-            }));
+            setAnswers((prev) => {
+                const next = {
+                    ...prev,
+                    [displayedIndex]: res,
+                };
+                onAnswerChange?.(next);
+                return next;
+            });
 
             if (isReviewMode) {
                 setAlertVisible(true);
@@ -439,11 +477,16 @@ function Quiz({data, mode = "quiz", onComplete}: QuizProps) {
 
     /* ---------------------- Render Helpers ---------------------- */
 
-    const getBlankState = () => !currentAnswer ? "empty" : currentAnswer.isCorrect ? "correct" : "incorrect";
+    const hasAnswerCorrectness = typeof currentAnswer?.isCorrect === "boolean";
+    const getBlankState = () =>
+        !currentAnswer || !hasAnswerCorrectness ? "empty" : currentAnswer.isCorrect ? "correct" : "incorrect";
 
     const getAlertMessage = (): ReactNode => {
         if (!currentAnswer) return null;
 
+        if (!hasAnswerCorrectness) {
+            return null;
+        }
         const isCorrect = currentAnswer.isCorrect;
 
         const icon = (
@@ -489,7 +532,7 @@ function Quiz({data, mode = "quiz", onComplete}: QuizProps) {
         ["1", "2", "3", "4", "Numpad1", "Numpad2", "Numpad3", "Numpad4"],
 
         (e) => {
-            if (isReviewMode && alertVisible) return; // ← block when locked
+            if (isReviewMode && alertVisible) return; // â†گ block when locked
             const key = e?.key ?? "";
             const num = parseInt(key.replace("Numpad", ""), 10);
             if (Number.isNaN(num)) return;
@@ -497,14 +540,12 @@ function Quiz({data, mode = "quiz", onComplete}: QuizProps) {
             if (!current || num < 1 || num > current.options.length) return;
 
             answerOptionsRef.current?.selectByKey(num);
-        },
-
-        [data, displayedIndex, isReviewMode, alertVisible]
+        }
     );
 
     useKeyboardShortcut(["Enter", "NumpadEnter"], () => {
         if (hasSelected) goNext(); // only advance if user selected an answer
-    }, [goNext, hasSelected]);
+    });
 
     /* -------------------------- Render -------------------------- */
 
@@ -537,7 +578,9 @@ function Quiz({data, mode = "quiz", onComplete}: QuizProps) {
                     ref={answerOptionsRef}
                     mode={mode}
                     className={cn("transition-all duration-300 ease-in-out", isTransitioning ? "opacity-0" : "opacity-100")}
-                    correctIndex={q.correctIndex} onAnswer={handleAnswer}
+                    correctIndex={q.correctIndex}
+                    optionIds={q.optionIds}
+                    onAnswer={handleAnswer}
                     disabled={isReviewMode && alertVisible} // lock options once alert is shown in review mode
                 >
                     {q.options.map((opt) => (
@@ -574,7 +617,7 @@ function Quiz({data, mode = "quiz", onComplete}: QuizProps) {
                 </div>
             ) : (
                 // REVIEW MODE -> show feedback Alert
-                alertVisible && currentAnswer && (
+                alertVisible && currentAnswer && hasAnswerCorrectness && (
                     <Alert
                         status={currentAnswer.isCorrect ? "success" : "failure"}
                         message={getAlertMessage()}
@@ -587,6 +630,7 @@ function Quiz({data, mode = "quiz", onComplete}: QuizProps) {
 
 import { useKeyboardShortcut } from "../hooks/useKeyboardShortcut";
 export default Quiz;
+
 
 
 

@@ -2,7 +2,7 @@ import type {ReactNode} from "react";
 
 function Content({ children }: { children: ReactNode }) {
     return (
-        <div className={"mt-8 flex flex-col items-center gap-8 mx-auto"}>
+        <div className={"mt-8 flex flex-col items-center gap-8"}>
             {children}
         </div>
     )

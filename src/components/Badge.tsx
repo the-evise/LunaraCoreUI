@@ -1,14 +1,15 @@
 import {cva, type VariantProps} from "class-variance-authority";
-import {motion, useAnimate} from "motion/react";
-import {forwardRef, type ReactNode, useCallback, useEffect} from "react";
-import mergeRefs from "../utils/mergeRefs";
+import {LockClosedIcon} from "@heroicons/react/24/solid";
+import {motion} from "motion/react";
+import {forwardRef, type ReactNode} from "react";
 
 const badgeVariants = cva(
-    "border-1 inline-flex items-center justify-center text-center cursor-default align-middle select-none transition-transform",
+    "border-1 inline-flex items-center justify-center text-center cursor-default align-middle select-none transition-colors",
     {
         variants: {
             type: {
                 empty: "border-space-100 bg-[repeating-linear-gradient(-55deg,#F2F6FE,#F2F6FE_10px,#ffffff_10px,#ffffff_20px)] bg-[length:200%_200%]",
+                locked: "border-space-100 bg-[repeating-linear-gradient(-55deg,#F2F6FE,#F2F6FE_10px,#ffffff_10px,#ffffff_20px)] bg-[length:200%_200%] text-space-300",
                 time: "bg-space-10 border-space-100 text-space-800 text-time",
                 xp: "bg-space-10 border-saffron-300 text-saffron-500",
                 grade: "",
@@ -49,12 +50,27 @@ const badgeVariants = cva(
             {
                 type: "time",
                 size: "2xl",
-                className: "!font-light text-[30px]",
+                className: "!font-light !text-[30px]",
+            },
+            {
+                type: "time",
+                size: "xl",
+                className: "!font-light !text-[26px]",
+            },
+            {
+                type: "time",
+                size: "lg",
+                className: "!font-light !text-[24px]",
             },
             {
                 type: "time",
                 size: "md",
-                className: "!font-normal text-[20px]",
+                className: "!font-normal !text-[20px]",
+            },
+            {
+                type: "time",
+                size: "sm",
+                className: "!font-normal !text-[18px]",
             },
         ],
         defaultVariants: {
@@ -66,6 +82,7 @@ const badgeVariants = cva(
 
 type BadgeVariants = VariantProps<typeof badgeVariants>;
 type BadgeGrade = "S" | "A" | "B" | "C" | "D" | "F";
+type BadgeNonItemSize = Exclude<BadgeVariants["size"], "item">;
 
 type BadgeBaseProps = {
     className?: string;
@@ -75,18 +92,17 @@ type BadgeBaseProps = {
 
 export type BadgeProps =
     | (BadgeBaseProps & {type: "grade"; grade: BadgeGrade | undefined; children?: ReactNode})
-    | (BadgeBaseProps & {type?: "time" | "xp"; grade?: never; children: ReactNode})
-    | (BadgeBaseProps & {type?: "empty"; grade?: never; children?: never});
+    | (Omit<BadgeBaseProps, "size"> & {type?: "time" | "xp"; grade?: never; children: ReactNode; size?: BadgeNonItemSize})
+    | (BadgeBaseProps & {type?: "empty" | "locked"; grade?: never; children?: never});
 
 const baseTransition = {
-    type: "spring",
-    duration: 0.35,
-    bounce: 0.28,
+  type: "spring",
+  stiffness: 400,
+  damping: 20,
+  mass: 0.1,
 } as const;
 
 const Badge = forwardRef<HTMLSpanElement, BadgeProps>((props, forwardedRef) => {
-    const [scope, animate] = useAnimate<HTMLSpanElement>();
-
     const {
         type: badgeType = "empty",
         grade,
@@ -95,92 +111,74 @@ const Badge = forwardRef<HTMLSpanElement, BadgeProps>((props, forwardedRef) => {
         children,
         animationControlled = false,
     } = props;
+    const resolvedSize = size ?? "lg";
 
-    const isExternallyControlled = animationControlled === true;
+    const isExternallyControlled = animationControlled;
 
-    const composedRef = useCallback(mergeRefs(scope, forwardedRef), [scope, forwardedRef]);
-
+    const lockIconClassName = {
+        "2xl": "size-11",
+        xl: "size-8",
+        lg: "size-7",
+        md: "size-6",
+        sm: "size-5",
+        item: "size-7",
+    }[resolvedSize];
 
     const displayContent =
         badgeType === "empty"
             ? null
-            : badgeType === "grade" && !children
-                ? grade
-                : children;
+            : badgeType === "locked"
+                ? <LockClosedIcon className={lockIconClassName} aria-hidden="true" />
+                : badgeType === "grade" && !children
+                    ? grade
+                    : children;
 
-    const isGradeS = badgeType === "grade" && grade === "S";
-
-    useEffect(() => {
-        if (!isGradeS || !scope.current) {
-            return;
-        }
-
-        const controls = animate([
-            [
-                scope.current,
-                {scale: [0.94, 1.08], rotate: [0, -10]},
-                {...baseTransition, duration: 0.3, bounce: 0.45, delay: 0.12},
-            ],
-            [
-                scope.current,
-                {scale: [1.08, 0.98], rotate: [-10, 6]},
-                {...baseTransition, duration: 0.26, bounce: 0.35},
-            ],
-            [
-                scope.current,
-                {scale: [0.98, 1], rotate: [6, 0]},
-                {...baseTransition, duration: 0.24, bounce: 0.28},
-            ],
-        ]);
-
-        return () => {
-            controls.stop();
-        };
-    }, [animate, isGradeS, scope, displayContent]);
+    const isEmptyStyle = badgeType === "empty" || badgeType === "locked";
 
     const baseAnimate = {
         opacity: 1,
         scale: 1,
         y: 0,
-        transition: {
-            ...baseTransition,
-            delay: 0.35,
-        },
+        transition: baseTransition,
     };
 
     return (
         <motion.span
-            ref={composedRef}
+            ref={forwardedRef}
             className={badgeVariants({
                 type: badgeType,
                 grade: badgeType === "grade" ? grade : undefined,
-                size,
+                size: resolvedSize,
                 className,
             })}
             key={`badge-${badgeType}-${displayContent ?? "empty"}`}
             data-badge-controlled={isExternallyControlled ? "" : undefined}
             data-badge-type={badgeType}
-            data-badge-nudge={badgeType === "empty" ? "false" : "true"}
+            data-badge-nudge={isEmptyStyle ? "false" : "true"}
             initial={{
                 opacity: 0,
-                scale: 0.92,
-                y: 6,
+                scale: 0.96,
+                y: (resolvedSize === "item" && (badgeType === "grade" || badgeType === "locked") || badgeType === "empty") ? 0 : 6,
             }}
             animate={baseAnimate}
             whileHover={
                 isExternallyControlled
                     ? undefined
                     : {
-                        scale: 1.04,
-                        y: badgeType === "empty" ? 0 : -6,
+                        scale: 1.02,
                     }
             }
             whileTap={
                 isExternallyControlled
                     ? undefined
                     : {
-                        scale: 0.97,
-                        y: 1,
+                        scale: 0.98,
+                        transition:{
+                            type: "spring",
+                            stiffness: 400,
+                            damping: 20,
+                            mass: 0.1,
+                        },
                     }
             }
         >

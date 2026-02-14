@@ -11,6 +11,7 @@ import {
 import { cn } from "../utils/cn";
 import { motion, useAnimationControls, useInView, useReducedMotion } from "motion/react";
 import Card from "./Card";
+import DashboardMessage from "./DashboardMessage";
 import Title from "./Title";
 
 /* ----------------------------- Item ----------------------------- */
@@ -212,8 +213,21 @@ function TipCard({ children, title="Tips" }: { children: ReactNode, title: strin
                     rounded="xmd"
                     className="flex flex-col"
                 >
-                    {items.map((child, index) =>
-                        cloneElement(child, { index, total: items.length })
+                    {items.length > 0 ? (
+                        items.map((child, index) =>
+                            cloneElement(child, { index, total: items.length })
+                        )
+                    ) : (
+                        <DashboardMessage
+                            tone="warning"
+                            align="left"
+                            size="sm"
+                            title="No tips yet"
+                            description="Tips will appear after this lesson review is generated."
+                            className="max-w-none border-persianred-200/60 bg-space-10/80"
+                        >
+                            Complete a section or refresh content to load practice tips.
+                        </DashboardMessage>
                     )}
                 </Card>
             </Card>

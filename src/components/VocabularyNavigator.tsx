@@ -5,8 +5,6 @@ import type {LegacyAnimationControls, PanInfo, Variants} from "motion";
 import VocabularyCard from "./VocabularyCard";
 import Progress from "./Progress";
 
-// TODO: image drag is not correct and shows wrong before/after images when drag-ing
-
 export interface VocabularyItem {
     word: string;
     meaningEn: string;
@@ -20,9 +18,11 @@ interface VocabularyNavigatorProps {
 }
 
 const SCROLL_BUTTON_CLASS =
-    "hidden md:inline-flex justify-center items-center bg-transparent border-1 border-space-150 text-space-250 text-center max-w-[140px] min-w-[50px] w-[140px] h-[50px] rounded-full hover:bg-space-100 transition-colors cursor-pointer disabled:cursor-not-allowed";
+    "hidden md:inline-flex justify-center items-center bg-white/80 border-1 border-space-150 text-space-500 text-center max-w-[140px] min-w-[50px] w-[140px] h-[50px] rounded-full shadow-sm hover:bg-space-50 transition-colors cursor-pointer disabled:cursor-not-allowed";
 
 const MOBILE_DRAG_THRESHOLD = 80;
+const NAVIGATION_DEBOUNCE_MS = 380;
+const WHEEL_NAVIGATION_DEBOUNCE_MS = 650;
 
 const baseTransition = {
     type: "spring",
@@ -48,8 +48,6 @@ const cardVariants = {
         transition: {...baseTransition, duration: 0.26},
     }),
 } as const;
-
-const LOG_PREFIX = "[VocabularyNavigator]";
 
 type BaseVariant = "idle" | "hovered" | "pressed";
 type WheelVariant = "wheelNext" | "wheelPrev" | "wheelEdgeNext" | "wheelEdgePrev";
@@ -86,26 +84,6 @@ const cardFrameVariants: Variants = {
     // },
 };
 
-const shellVariants: Variants = {
-    // idle: {y: 0, transition: {type: "spring", stiffness: 320, damping: 30}},
-    // hovered: {y: -2, transition: {type: "spring", stiffness: 260, damping: 26}},
-    // pressed: {y: 2, transition: {type: "spring", stiffness: 480, damping: 32}},
-    // wheelNext: {y: [0, -6, 0], transition: {duration: 0.5, ease: wheelEase, times: [0, 0.5, 1]}},
-    // wheelPrev: {y: [0, 6, 0], transition: {duration: 0.5, ease: wheelEase, times: [0, 0.5, 1]}},
-    // wheelEdgeNext: {y: [0, -4, 0], transition: {duration: 0.4, ease: wheelEase, times: [0, 0.45, 1]}},
-    // wheelEdgePrev: {y: [0, 4, 0], transition: {duration: 0.4, ease: wheelEase, times: [0, 0.45, 1]}},
-};
-
-const progressVariants: Variants = {
-    idle: {scale: 1, y: 0, transition: {type: "spring", stiffness: 320, damping: 32}},
-    hovered: {scale: 1.02, y: -2, transition: {type: "spring", stiffness: 260, damping: 28}},
-    pressed: {scale: 0.96, y: 2, transition: {type: "spring", stiffness: 480, damping: 32}},
-    wheelNext: {scale: [1, 0.9, 1], y: [0, 0, 0], transition: {duration: 0.5,delay:0.5, ease: wheelEase, times: [0, 0.45, 1]}},
-    wheelPrev: {scale: [1, 0.9, 1], y: [0, 0, 0], transition: {duration: 0.5, delay:0.5, ease: wheelEase, times: [0, 0.45, 1]}},
-    // wheelEdgeNext: {scale: [1, 0.95, 1], transition: {duration: 0.4, ease: wheelEase, times: [0, 0.45, 1]}},
-    // wheelEdgePrev: {scale: [1, 0.95, 1], transition: {duration: 0.4, ease: wheelEase, times: [0, 0.45, 1]}},
-};
-
 const scrollButtonVariants: Variants = {
     idle: {scale: 1, transition: {type: "spring", stiffness: 320, damping: 30}},
     hovered: {scale: 1.05, transition: {type: "spring", stiffness: 260, damping: 24}},
@@ -119,16 +97,18 @@ const scrollButtonVariants: Variants = {
 type NavigationSource = "navigation" | "wheel";
 
 function ScrollButton({
-    icon,
-    onClick,
-    disabled,
-    position,
-    controls,
-}: {
+                          icon,
+                          onClick,
+                          disabled,
+                          position,
+                          ariaLabel,
+                          controls,
+                      }: {
     icon: string;
     onClick: () => void;
     disabled?: boolean;
     position: "top" | "bottom";
+    ariaLabel: string;
     controls: LegacyAnimationControls;
 }) {
     return (
@@ -136,6 +116,7 @@ function ScrollButton({
             type="button"
             onClick={onClick}
             disabled={disabled}
+            aria-label={ariaLabel}
             data-vocab-scroll={position}
             className={`${SCROLL_BUTTON_CLASS} ${disabled ? "opacity-40" : ""}`}
             variants={scrollButtonVariants}
@@ -161,11 +142,11 @@ function VocabularyNavigator({vocabularyItems}: VocabularyNavigatorProps) {
     const sharedControls = useAnimationControls();
     const prefersReducedMotion = useReducedMotion();
     const baseVariantRef = useRef<BaseVariant>("idle");
-    const wheelCooldownRef = useRef(false);
-    const wheelTimeoutRef = useRef<number | null>(null);
-    const lastPointerTypeRef = useRef<PointerEvent["pointerType"] | null>(null);
+    const navigationCooldownRef = useRef(false);
+    const navigationTimeoutRef = useRef<number | null>(null);
     const indexRef = useRef(index);
     const itemCountRef = useRef(itemCount);
+    const resolvedIndex = itemCount > 0 ? Math.min(Math.max(index, 0), itemCount - 1) : 0;
 
     useEffect(() => {
         sharedControls.set("idle");
@@ -175,7 +156,6 @@ function VocabularyNavigator({vocabularyItems}: VocabularyNavigatorProps) {
         const mq = window.matchMedia("(max-width: 768px)");
         const update = () => {
             const mobile = mq.matches;
-            console.log(LOG_PREFIX, "media query update", {mobile});
             setIsMobile(mobile);
         };
         update();
@@ -184,10 +164,17 @@ function VocabularyNavigator({vocabularyItems}: VocabularyNavigatorProps) {
     }, []);
 
     useEffect(() => {
-        indexRef.current = index;
+        indexRef.current = itemCount > 0 ? Math.min(Math.max(index, 0), itemCount - 1) : 0;
         itemCountRef.current = itemCount;
-        console.log(LOG_PREFIX, "state sync", {index, itemCount, direction});
-    }, [index, itemCount, direction]);
+    }, [index, itemCount]);
+
+    useEffect(() => {
+        if (itemCount === 0) {
+            setIndex(0);
+            return;
+        }
+        setIndex((current) => Math.min(Math.max(current, 0), itemCount - 1));
+    }, [itemCount]);
 
     const setBaseInteraction = useCallback(
         (variant: BaseVariant) => {
@@ -199,10 +186,8 @@ function VocabularyNavigator({vocabularyItems}: VocabularyNavigatorProps) {
 
     const playWheelVariant = useCallback(
         async (variant: WheelVariant) => {
-            console.log(LOG_PREFIX, "wheel variant start", {variant});
             await sharedControls.start(variant);
             await sharedControls.start(baseVariantRef.current);
-            console.log(LOG_PREFIX, "wheel variant end", {variant});
         },
         [sharedControls],
     );
@@ -213,50 +198,51 @@ function VocabularyNavigator({vocabularyItems}: VocabularyNavigatorProps) {
 
     useEffect(
         () => () => {
-            if (wheelTimeoutRef.current) window.clearTimeout(wheelTimeoutRef.current);
-            wheelCooldownRef.current = false;
+            if (navigationTimeoutRef.current) window.clearTimeout(navigationTimeoutRef.current);
+            navigationCooldownRef.current = false;
         },
         [],
     );
+
+    const tryAcquireNavigationLock = useCallback((debounceMs: number) => {
+        if (navigationCooldownRef.current) return false;
+
+        navigationCooldownRef.current = true;
+        if (navigationTimeoutRef.current) window.clearTimeout(navigationTimeoutRef.current);
+        navigationTimeoutRef.current = window.setTimeout(() => {
+            navigationCooldownRef.current = false;
+            navigationTimeoutRef.current = null;
+        }, debounceMs);
+
+        return true;
+    }, []);
 
     const updateIndex = useCallback(
         (targetIndex: number) => {
             setIndex((current) => {
                 if (targetIndex === current || targetIndex < 0 || targetIndex >= itemCount) {
-                    console.log(LOG_PREFIX, "updateIndex noop", {
-                        from: current,
-                        to: targetIndex,
-                        itemCount,
-                    });
                     return current;
                 }
                 const nextDirection = targetIndex > current ? 1 : -1;
-                console.log(LOG_PREFIX, "updateIndex", {
-                    from: current,
-                    to: targetIndex,
-                    direction: nextDirection,
-                    mode: transitionMode,
-                });
                 setDirection(nextDirection);
                 return targetIndex;
             });
         },
-        [itemCount, transitionMode],
+        [itemCount],
     );
 
     const [delayedIndex, setDelayedIndex] = useState(index + 1);
 
     useEffect(() => {
         if (transitionMode === "wheel") {
-            const timout = setTimeout(() => setDelayedIndex(index + 1), 500);
+            const timout = setTimeout(() => setDelayedIndex(resolvedIndex + 1), 500);
             return () => clearTimeout(timout);
-        } else setDelayedIndex(index + 1);
-    }, [index, transitionMode]);
+        } else setDelayedIndex(resolvedIndex + 1);
+    }, [resolvedIndex, transitionMode]);
 
     const commitTransitionMode = useCallback(
         (mode: NavigationSource) => {
             flushSync(() => {
-                console.log(LOG_PREFIX, "transitionMode change", {mode});
                 setTransitionMode(mode);
             });
         },
@@ -264,26 +250,24 @@ function VocabularyNavigator({vocabularyItems}: VocabularyNavigatorProps) {
     );
 
     const handlePrev = useCallback(() => {
+        if (!tryAcquireNavigationLock(NAVIGATION_DEBOUNCE_MS)) return;
         commitTransitionMode("navigation");
-        console.log(LOG_PREFIX, "handlePrev", {index});
-        updateIndex(index - 1);
-    }, [commitTransitionMode, index, updateIndex]);
+        updateIndex(resolvedIndex - 1);
+    }, [commitTransitionMode, resolvedIndex, tryAcquireNavigationLock, updateIndex]);
 
     const handleNext = useCallback(() => {
+        if (!tryAcquireNavigationLock(NAVIGATION_DEBOUNCE_MS)) return;
         commitTransitionMode("navigation");
-        console.log(LOG_PREFIX, "handleNext", {index});
-        updateIndex(index + 1);
-    }, [commitTransitionMode, index, updateIndex]);
+        updateIndex(resolvedIndex + 1);
+    }, [commitTransitionMode, resolvedIndex, tryAcquireNavigationLock, updateIndex]);
 
     const goToNext = useCallback(() => {
         commitTransitionMode("navigation");
-        console.log(LOG_PREFIX, "goToNext", {index: indexRef.current});
         updateIndex(indexRef.current + 1);
     }, [commitTransitionMode, updateIndex]);
 
     const goToPrev = useCallback(() => {
         commitTransitionMode("navigation");
-        console.log(LOG_PREFIX, "goToPrev", {index: indexRef.current});
         updateIndex(indexRef.current - 1);
     }, [commitTransitionMode, updateIndex]);
 
@@ -293,18 +277,11 @@ function VocabularyNavigator({vocabularyItems}: VocabularyNavigatorProps) {
         if (!node) return;
 
         const handleWheel = async (event: WheelEvent) => {
-            console.log(LOG_PREFIX, "wheel event start", {
-                deltaY: event.deltaY,
-                shiftKey: event.shiftKey,
-                ctrlKey: event.ctrlKey,
-            });
             if (Math.abs(event.deltaY) < 8) {
-                console.log(LOG_PREFIX, "wheel ignored - small delta", {deltaY: event.deltaY});
                 return;
             }
             event.preventDefault();
-            if (wheelCooldownRef.current) {
-                console.log(LOG_PREFIX, "wheel ignored - cooldown");
+            if (!tryAcquireNavigationLock(WHEEL_NAVIGATION_DEBOUNCE_MS)) {
                 return;
             }
 
@@ -313,23 +290,7 @@ function VocabularyNavigator({vocabularyItems}: VocabularyNavigatorProps) {
             const isNext = event.deltaY > 0;
             const targetIndex = isNext ? currentIndex + 1 : currentIndex - 1;
             const canMove = targetIndex >= 0 && targetIndex < total;
-            console.log(LOG_PREFIX, "wheel evaluation", {
-                currentIndex,
-                targetIndex,
-                total,
-                isNext,
-                canMove,
-            });
 
-            wheelCooldownRef.current = true;
-            if (wheelTimeoutRef.current) window.clearTimeout(wheelTimeoutRef.current);
-            wheelTimeoutRef.current = window.setTimeout(() => {
-                wheelCooldownRef.current = false;
-                wheelTimeoutRef.current = null;
-                console.log(LOG_PREFIX, "wheel cooldown cleared");
-            }, 1100);
-
-            lastPointerTypeRef.current = "mouse";
             setBaseInteraction("pressed");
 
             if (prefersReducedMotion) {
@@ -354,13 +315,23 @@ function VocabularyNavigator({vocabularyItems}: VocabularyNavigatorProps) {
 
         node.addEventListener("wheel", handleWheel, {passive: false});
         return () => node.removeEventListener("wheel", handleWheel);
-    }, [commitTransitionMode, isMobile, playWheelVariant, prefersReducedMotion, setBaseInteraction, updateIndex]);
+    }, [
+        commitTransitionMode,
+        isMobile,
+        playWheelVariant,
+        prefersReducedMotion,
+        setBaseInteraction,
+        tryAcquireNavigationLock,
+        updateIndex,
+    ]);
 
     if (itemCount === 0) return null;
 
-    const current = vocabularyItems[index];
-    const prevItem = index > 0 ? vocabularyItems[index - 1] : undefined;
-    const nextItem = index < itemCount - 1 ? vocabularyItems[index + 1] : undefined;
+    const current = vocabularyItems[resolvedIndex];
+    const prevItem = resolvedIndex > 0 ? vocabularyItems[resolvedIndex - 1] : undefined;
+    const nextItem = resolvedIndex < itemCount - 1 ? vocabularyItems[resolvedIndex + 1] : undefined;
+    const progressValue = Math.min(Math.max(resolvedIndex + 1, 1), itemCount);
+    const delayedProgressValue = Math.min(Math.max(delayedIndex, 1), itemCount);
 
     const dragMotionProps = useMemo(() => {
         if (!isMobile) return {};
@@ -372,19 +343,17 @@ function VocabularyNavigator({vocabularyItems}: VocabularyNavigatorProps) {
             dragMomentum: false,
             dragSnapToOrigin: true,
             onDragStart: () => {
-                lastPointerTypeRef.current = "touch";
                 setBaseInteraction("pressed");
             },
             onDragEnd: (_event: unknown, info: PanInfo) => {
-                lastPointerTypeRef.current = null;
                 setBaseInteraction("idle");
                 const projected = info.offset.x + info.velocity.x * 0.2;
 
-                if (projected >= MOBILE_DRAG_THRESHOLD && index > 0) goToPrev();
-                else if (projected <= -MOBILE_DRAG_THRESHOLD && index < itemCount - 1) goToNext();
+                if (projected >= MOBILE_DRAG_THRESHOLD && resolvedIndex > 0) goToPrev();
+                else if (projected <= -MOBILE_DRAG_THRESHOLD && resolvedIndex < itemCount - 1) goToNext();
             },
         };
-    }, [goToNext, goToPrev, index, isMobile, setBaseInteraction]);
+    }, [goToNext, goToPrev, itemCount, isMobile, resolvedIndex, setBaseInteraction]);
 
     const imageDragProps = useMemo(() => {
         if (!isMobile) return undefined;
@@ -400,28 +369,25 @@ function VocabularyNavigator({vocabularyItems}: VocabularyNavigatorProps) {
                 event.stopPropagation();
             },
             onDragStart: () => {
-                lastPointerTypeRef.current = "touch";
                 setBaseInteraction("pressed");
             },
             onDragEnd: (_event: PointerEvent | MouseEvent | TouchEvent, info: PanInfo) => {
-                lastPointerTypeRef.current = null;
                 setBaseInteraction("idle");
                 const projected = info.offset.x + info.velocity.x * 0.2;
 
-                if (projected >= threshold && index > 0) {
+                if (projected >= threshold && resolvedIndex > 0) {
                     goToPrev();
-                } else if (projected <= -threshold && index < itemCount - 1) {
+                } else if (projected <= -threshold && resolvedIndex < itemCount - 1) {
                     goToNext();
                 }
                 imageDragX.set(0);
             },
             onDragCancel: () => {
-                lastPointerTypeRef.current = null;
                 setBaseInteraction("idle");
                 imageDragX.set(0);
             },
         };
-    }, [goToPrev, goToNext, imageDragX, index, isMobile, setBaseInteraction]);
+    }, [goToPrev, goToNext, imageDragX, itemCount, isMobile, resolvedIndex, setBaseInteraction]);
 
     const cardMotionProps = useMemo(() => {
         const baseProps = {
@@ -447,57 +413,50 @@ function VocabularyNavigator({vocabularyItems}: VocabularyNavigatorProps) {
     return (
         <AnimatePresence initial mode="sync" custom={direction}>
 
-        <div
-            ref={containerRef}
-            className="flex w-full max-w-[1060px] flex-col items-center justify-center gap-5 no-scrollbar"
-        >
-            <ScrollButton
-                icon="keyboard_arrow_up"
-                onClick={handlePrev}
-                disabled={index === 0}
-                position="top"
-                controls={sharedControls}
-            />
-            <motion.div
-                className="relative w-full flex flex-col items-center"
-                data-vocab-shell
-                variants={shellVariants}
-                animate={sharedControls}
+            <div
+                ref={containerRef}
+                className="flex w-full max-w-[1060px] flex-col items-center justify-center gap-4 px-3 sm:px-4 md:px-6 no-scrollbar"
             >
-                <motion.div
-                    className="flex w-[98%] max-w-[1060px] items-center justify-center gap-6 sm:w-[80%] lg:w-[95%] lg:max-w-[980px]"
-                    data-vocab-progress-shell=""
-                    variants={shellVariants}
-                    animate={sharedControls}
+                <ScrollButton
+                    icon="keyboard_arrow_up"
+                    onClick={handlePrev}
+                    disabled={resolvedIndex === 0}
+                    position="top"
+                    ariaLabel="Previous vocabulary item"
+                    controls={sharedControls}
+                />
+                <div
+                    className="relative w-full flex flex-col items-center"
+                    data-vocab-shell
                 >
-                    <motion.div
-                        className="hidden h-[168px] w-[28px] items-center justify-center md:flex"
-                        data-vocab-progress-desktop=""
-                        variants={progressVariants}
-                        initial="idle"
-                        whileHover="hovered"
-                        whileTap="pressed"
-                        animate={sharedControls}
+                    <div
+                        className="flex w-full max-w-[980px] items-center justify-center gap-4 md:gap-6"
+                        data-vocab-progress-shell=""
                     >
-                        <Progress
+                        <div
                             className="hidden h-[168px] w-[28px] items-center justify-center md:flex"
-                            value={delayedIndex}
-                            max={itemCount}
-                            tone="space"
-                            size="lg"
-                            dotted
-                            orientation="vertical"
-                        />
-                    </motion.div>
-                    <motion.div
-                        className="flex w-full justify-center"
-                        variants={cardFrameVariants}
-                        initial="idle"
-                        whileHover="hovered"
-                        whileTap="pressed"
-                        animate={sharedControls}>
+                            data-vocab-progress-desktop=""
+                        >
+                            <Progress
+                                className="hidden h-[168px] w-[28px] items-center justify-center md:flex"
+                                value={delayedProgressValue}
+                                max={itemCount}
+                                tone="space"
+                                size="lg"
+                                dotted
+                                orientation="vertical"
+                                animateOnInView={false}
+                            />
+                        </div>
+                        <motion.div
+                            className="flex w-full justify-center"
+                            variants={cardFrameVariants}
+                            initial="idle"
+                            whileHover="hovered"
+                            whileTap="pressed"
+                            animate={sharedControls}>
                             <VocabularyCard
-                                key={`${current.word}-${index}`}
+                                key={`${current.word}-${resolvedIndex}`}
                                 imageSrc={current.image}
                                 faText={current.meaningFa}
                                 enWord={current.word}
@@ -507,39 +466,41 @@ function VocabularyNavigator({vocabularyItems}: VocabularyNavigatorProps) {
                                 motionProps={cardMotionProps}
                                 imageDragProps={imageDragProps}
                                 imageDragValue={imageDragX}
-                                prevImageSrc={prevItem?.image}
-                                prevImageLabel={prevItem?.word}
-                                nextImageSrc={nextItem?.image}
-                                nextImageLabel={nextItem?.word}
+                                // VocabularyCard uses `nextImage*` for the leading preview slot.
+                                prevImageSrc={nextItem?.image}
+                                prevImageLabel={nextItem?.word}
+                                nextImageSrc={prevItem?.image}
+                                nextImageLabel={prevItem?.word}
                                 footer={
-                                    <motion.div
-                                        className="mt-4 inline-flex items-center justify-center md:hidden"
+                                    <div
+                                        className="mt-3 inline-flex items-center justify-center md:hidden"
                                         data-vocab-progress-mobile=""
                                         data-vocab-card-progress-mobile=""
-                                        variants={progressVariants}
-                                        animate={sharedControls}
                                     >
                                         <Progress
-                                            value={index + 1}
+                                            value={progressValue}
                                             max={itemCount}
                                             tone="space"
-                                            size="lg"
+                                            size="md"
                                             dotted
+                                            orientation="horizontal"
+                                            animateOnInView={false}
                                         />
-                                    </motion.div>
+                                    </div>
                                 }
                             />
-                    </motion.div>
-                </motion.div>
-            </motion.div>
-            <ScrollButton
-                icon="keyboard_arrow_down"
-                onClick={handleNext}
-                disabled={index === itemCount - 1}
-                position="bottom"
-                controls={sharedControls}
-            />
-        </div>
+                        </motion.div>
+                    </div>
+                </div>
+                <ScrollButton
+                    icon="keyboard_arrow_down"
+                    onClick={handleNext}
+                    disabled={resolvedIndex === itemCount - 1}
+                    position="bottom"
+                    ariaLabel="Next vocabulary item"
+                    controls={sharedControls}
+                />
+            </div>
         </AnimatePresence>
 
     );

@@ -14,7 +14,7 @@ type SubtitleTone =
 type SubtitleSize = 3 | 4 | 5 | 6; // excludes h1, h2
 
 const subtitleVariants = cva(
-    "inline-flex items-center justify-center rounded-full leading-tight transition-colors duration-200 w-fit mx-auto",
+    "inline-flex items-center rounded-full leading-tight transition-colors duration-200 w-fit",
     {
         variants: {
             tone: {
@@ -40,11 +40,22 @@ const subtitleVariants = cva(
                 md: "px-6 py-2",
                 lg: "px-6 py-3",
             },
+            align: {
+                left: "justify-start text-left mr-auto ml-0",
+                center: "justify-center text-center mx-auto",
+                right: "justify-end text-right ml-auto mr-0",
+            },
+            isTransparent: {
+                true: "!bg-transparent dark:!bg-transparent",
+                false: "",
+            },
         },
         defaultVariants: {
             tone: "CelestialBlue",
             size: 4,
             padding: "md",
+            align: "center",
+            isTransparent: false,
         },
     }
 );
@@ -70,6 +81,8 @@ export interface SubtitleProps
     children: ReactNode;
     /** optional motion animation */
     animateFrom?: "left" | "right" | "bottom" | "top";
+    /** removes background regardless of tone */
+    isTransparent?: boolean;
 }
 
 function Subtitle({
@@ -77,6 +90,8 @@ function Subtitle({
                       tone,
                       size = 4,
                       padding,
+                      align = "center",
+                      isTransparent = false,
                       className,
                       animateFrom,
                       ...rest
@@ -95,7 +110,10 @@ function Subtitle({
         initial: animateFrom ? initialMap[animateFrom] : false,
         animate: {opacity: 1, x: 0, y: 0},
         transition: {type: "spring", duration: 0.2, delay: 0.3, bounce: 0.2},
-        className: cn(subtitleVariants({tone, size: resolvedSize, padding}), className),
+        className: cn(
+            subtitleVariants({ tone, size: resolvedSize, padding, align, isTransparent }),
+            className
+        ),
         ...rest,
     };
 

@@ -1,4 +1,4 @@
-import {forwardRef, useLayoutEffect, useMemo, useRef, useState} from "react";
+﻿import {forwardRef, useLayoutEffect, useMemo, useRef, useState} from "react";
 import type {ReactNode} from "react";
 import {motion, useMotionValue} from "motion/react";
 import type {HTMLMotionProps} from "motion/react";
@@ -142,7 +142,7 @@ function RenderImage({
     return (
         <div
             ref={containerRef}
-            className="relative h-auto w-full md:h-[368px] md:w-[360px] md:flex-shrink-0 md:rounded-xl md:border-3 md:border-white"
+            className="relative h-auto w-full md:h-[368px] md:w-[360px] md:flex-shrink-0 rounded-2xl md:border-3 md:border-white"
             data-vocab-card-image=""
         >
             <div className="relative h-full w-full">
@@ -160,12 +160,12 @@ function RenderImage({
                                 <img
                                     src={src}
                                     alt={alt}
-                                    className="h-auto w-full aspect-10/7 object-cover md:h-full md:aspect-square md:rounded-xl"
+                                    className="h-auto w-full aspect-10/7 object-cover md:h-full md:aspect-square rounded-2xl"
                                     loading="lazy"
                                     aria-hidden={role !== "current"}
                                 />
                                 {role === "current" ? (
-                                    <div className="absolute bottom-3 left-1/2 flex w-auto -translate-x-1/2 select-none items-center justify-center whitespace-nowrap rounded-full border border-black/20 bg-black/65 px-5 py-2 text-center text-[20px] font-medium text-celestialblue-50 backdrop-blur-lg md:bottom-6 md:w-[90%]">
+                                    <div className="absolute bottom-3 left-1/2 flex w-auto -translate-x-1/2 select-none items-center justify-center whitespace-nowrap rounded-full border border-black/20 bg-black/65 px-5 py-2 text-center font-iransans text-[20px] font-medium text-celestialblue-50 backdrop-blur-lg md:bottom-6 md:w-[90%]">
                                         {faText}
                                     </div>
                                 ) : null}
@@ -343,11 +343,11 @@ const VocabularyCard = forwardRef<HTMLDivElement, VocabularyCardProps>(
                 >
                     <Card
                         tone="White"
-                        rounded="xl"
+                        rounded="3xl"
                         elevation="none"
                         align="left"
                         padding="lg"
-                        className="transition-all duration-300 hover:ring-2 ring-celestialblue-100/50"
+                        className="transition-colors duration-300 hover:ring-2 ring-celestialblue-100/50"
                     >
                         <div
                             className="flex w-full flex-col items-center gap-6 md:flex-col lg:flex-row"

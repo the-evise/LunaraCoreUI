@@ -1,4 +1,4 @@
-import { cva, type VariantProps } from "class-variance-authority";
+﻿import { cva, type VariantProps } from "class-variance-authority";
 import "material-symbols";
 import React, {
   Children,
@@ -24,10 +24,12 @@ import {
   useAnimationControls,
 } from "motion/react";
 import type { HTMLMotionProps } from "motion/react";
+import type { Variants } from "motion";
 import { cn } from "../utils/cn";
 import Progress from "./Progress";
 import { QuizData, QuizQuestion } from "./LessonContent";
 import { useKeyboardShortcut } from "../hooks/useKeyboardShortcut";
+import Button from "./Button";
 /* --------------------------- Question Component --------------------------- */ const questionVariants =
   cva(
     "inline-block align-middle items-center w-full px-6 py-4 text-xl font-normal text-space-800 leading-[38px] select-none break-words lg:max-w-[860px] lg:px-8 lg:py-6 lg:text-3xl lg:leading-[60px]",
@@ -68,7 +70,7 @@ const blankVariants = cva(
   },
 );
 type BlankState = VariantProps<typeof blankVariants>["state"];
-const blankMotionVariants: Record<NonNullable<BlankState>, any> = {
+const blankMotionVariants: Variants = {
   empty: {
     scale: 1,
     boxShadow: "0 0 0 rgba(2, 6, 23, 0)",
@@ -140,10 +142,22 @@ function Blank({
 export const Question = Object.assign(QuestionBase, { Blank });
 /* -------------------------- Answer Options Group -------------------------- */ interface AnswerSelection {
   label: string;
-  isCorrect: boolean;
+  optionIndex: number;
+  optionId?: string;
+  isCorrect: boolean | null;
 }
+export type QuizAnimatedAnswerState = Record<number, AnswerSelection>;
+export type QuizAnimatedFeedbackContext = {
+  questionId: string;
+  questionIndex: number;
+  isCorrect: boolean;
+  answerLabel?: string;
+  isLastQuestion: boolean;
+  actionLabel: string;
+  onContinue: () => void;
+};
 interface AnswerOptionsContextValue {
-  correctIndex: number;
+  correctIndex: number | null;
   selectedIndex: number | null;
   selectOption: (index: number, label: string) => void;
   mode: "quiz" | "review";
@@ -163,10 +177,10 @@ const containerVariants = cva(
   "flex w-full flex-col gap-3 max-w-[480px] lg:max-w-[620px] lg:gap-4",
 );
 const optionVariants = cva(
-  "flex w-full items-center gap-3 rounded-lg border-2 px-4 py-4 text-lg text-left transition-all duration-200 ease-in-out select-none lg:gap-4 lg:rounded-xl lg:border-3 lg:px-6 lg:py-5 lg:text-xl",
+  "flex w-full items-center gap-3 rounded-lg border-2 px-4 py-4 text-lg text-left transition-colors duration-200 ease-in-out select-none lg:gap-4 lg:rounded-xl lg:border-3 lg:px-6 lg:py-5 lg:text-xl",
   {
     variants: {
-      tone: { idle: "cursor-pointer", correct: "", incorrect: "" },
+      tone: { idle: "cursor-pointer", selected: "", correct: "", incorrect: "" },
       mode: { quiz: "", review: "" },
       disabled: { true: "pointer-events-none", false: "" },
     },
@@ -179,6 +193,12 @@ const optionVariants = cva(
       },
       {
         mode: "quiz",
+        tone: "selected",
+        class:
+          "border-saffron-300 bg-saffron-50 text-saffron-800 [&>span:last-child]:text-saffron-400",
+      },
+      {
+        mode: "quiz",
         tone: ["correct", "incorrect"],
         class:
           "border-saffron-300 bg-saffron-50 text-saffron-800 [&>span:last-child]:text-saffron-400",
@@ -188,6 +208,12 @@ const optionVariants = cva(
         tone: "idle",
         class:
           "border-space-100 bg-space-10 text-space-700 hover:border-space-200 hover:text-space-800 [&>span:last-child]:text-space-200 hover:[&>span:last-child]:text-space-250",
+      },
+      {
+        mode: "review",
+        tone: "selected",
+        class:
+          "border-space-200 bg-space-50 text-space-800 [&>span:last-child]:text-space-300",
       },
       {
         mode: "review",
@@ -252,10 +278,16 @@ function Option({
   }, [controls]);
   if (optionIndex == null)
     throw new Error("AnswerOptions.Option expects an index.");
+  const resolvedCorrectIndex =
+    typeof correctIndex === "number" && correctIndex > 0 ? correctIndex : null;
+  const hasCorrectIndex = resolvedCorrectIndex !== null;
   const isSelected = selectedIndex === optionIndex;
-  const isCorrect = correctIndex === optionIndex;
+  const isCorrect = hasCorrectIndex && resolvedCorrectIndex === optionIndex;
   const shouldReveal = revealCorrect && isCorrect;
   const tone: VariantProps<typeof optionVariants>["tone"] = (() => {
+    if (!hasCorrectIndex) {
+      return isSelected ? "selected" : "idle";
+    }
     if (isSelected) {
       return isCorrect ? "correct" : "incorrect";
     }
@@ -266,6 +298,9 @@ function Option({
   })();
 
   const animationState = (() => {
+    if (!hasCorrectIndex) {
+      return isSelected ? "active" : "idle";
+    }
     if (isSelected) {
       return isCorrect ? "active" : "incorrect";
     }
@@ -322,8 +357,9 @@ function AnswerOptionsBase(
     disabled = false,
     revealCorrect = false,
     questionId,
+    optionIds,
   }: {
-    correctIndex: number;
+    correctIndex?: number | null;
     children: ReactNode;
     className?: string;
     onAnswer?: (result: AnswerSelection) => void;
@@ -331,49 +367,64 @@ function AnswerOptionsBase(
     disabled?: boolean;
     revealCorrect?: boolean;
     questionId?: string | number;
+    optionIds?: string[];
   },
   ref: React.Ref<{ selectByKey: (index: number) => void }>,
 ) {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const resolvedCorrectIndex =
+    typeof correctIndex === "number" && correctIndex > 0 ? correctIndex : null;
   const selectOption = useCallback(
     (index: number, label: string) => {
       if (disabled) return;
       setSelectedIndex(index);
-      onAnswer?.({ label, isCorrect: index === correctIndex });
+      const optionId = optionIds?.[index - 1];
+      onAnswer?.({
+        label,
+        optionIndex: index,
+        optionId,
+        isCorrect: resolvedCorrectIndex ? index === resolvedCorrectIndex : null,
+      });
     },
-    [correctIndex, onAnswer, disabled],
+    [disabled, onAnswer, optionIds, resolvedCorrectIndex],
   );
   useImperativeHandle(ref, () => ({
     selectByKey(index: number) {
       const label = React.Children.toArray(children)[index - 1];
       if (!label) return;
-      const stringLabel =
-        typeof label === "string"
-          ? label
-          : (label as any).props.value || `Option ${index}`;
+      let stringLabel = `Option ${index}`;
+      if (typeof label === "string" || typeof label === "number") {
+        stringLabel = String(label);
+      } else if (
+        isValidElement<{ value?: string }>(label) &&
+        typeof label.props.value === "string"
+      ) {
+        stringLabel = label.props.value;
+      }
       selectOption(index, stringLabel);
     },
   }));
   useEffect(() => {
     setSelectedIndex(null);
-  }, [correctIndex, questionId]);
+  }, [resolvedCorrectIndex, questionId]);
 
   const contextValue = useMemo(
     () => ({
-      correctIndex,
+      correctIndex: resolvedCorrectIndex,
       selectedIndex,
       selectOption,
       mode,
       disabled,
       revealCorrect,
     }),
-    [correctIndex, selectedIndex, selectOption, mode, disabled, revealCorrect],
+    [resolvedCorrectIndex, selectedIndex, selectOption, mode, disabled, revealCorrect],
   );
-  const enhancedChildren = Children.map(children, (child, i) =>
-    isValidElement(child)
-      ? cloneElement(child as ReactElement<any>, { optionIndex: i + 1 })
-      : child,
-  );
+  const enhancedChildren = Children.map(children, (child, i) => {
+    if (!isValidElement<{ optionIndex?: number }>(child)) return child;
+    return cloneElement(child as ReactElement<{ optionIndex?: number }>, {
+      optionIndex: i + 1,
+    });
+  });
   return (
     <AnswerOptionsContext.Provider value={contextValue}>
       {" "}
@@ -421,13 +472,16 @@ function Alert({
         {message}
       </div>
       {actionLabel && onAction ? (
-        <button
-          type="button"
+        <Button
           onClick={onAction}
-          className="rounded-full bg-space-900 px-5 py-2 text-sm font-medium text-white transition hover:bg-space-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-space-500 focus-visible:ring-offset-2"
+          variant="secondary"
+          size="sm"
+          static
+          isMagnetic={false}
+          className="rounded-full bg-space-900 px-5 py-2 font-medium text-white hover:bg-space-800"
         >
           {actionLabel}
-        </button>
+        </Button>
       ) : null}
     </div>
   );
@@ -450,18 +504,33 @@ function Quiz({
   data,
   mode = "quiz",
   onComplete,
+  onAnswerChange,
+  renderFeedback,
 }: {
   data: QuizData;
   mode?: "quiz" | "review";
-  onComplete?: (score: number) => void;
+  onComplete?: (score: number) => void | Promise<void>;
+  onAnswerChange?: (answers: QuizAnimatedAnswerState) => void;
+  renderFeedback?: (context: QuizAnimatedFeedbackContext) => ReactNode;
 }) {
   const [displayedIndex, setDisplayedIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<number, AnswerSelection>>({});
+  const [answers, setAnswers] = useState<QuizAnimatedAnswerState>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [alertVisible, setAlertVisible] = useState(false);
   const [direction, setDirection] = useState<1 | -1>(1);
   const [revealCorrect, setRevealCorrect] = useState(false);
   const total = data.questions.length;
   const current = data.questions[displayedIndex];
+  if (!current) {
+    return (
+      <div className="flex w-full flex-col items-center gap-8">
+        <div className="flex w-full flex-col items-center justify-center gap-6 border-b-2 border-space-150 bg-space-50 py-10 text-center">
+          <Question>No questions available.</Question>
+        </div>
+      </div>
+    );
+  }
   const currentAnswer = answers[displayedIndex];
   const isReviewMode = mode === "review";
   const hasSelected = Boolean(answers[displayedIndex]);
@@ -470,6 +539,18 @@ function Quiz({
   );
   const [scope, animate] = useAnimate();
   const revealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasReportedAnswersRef = useRef(false);
+  const completionReportedRef = useRef(false);
+  const dataSignature = useMemo(
+    () =>
+      data.questions
+        .map((q, questionIndex) => {
+          const optionSignature = q.optionIds?.join(",") ?? q.options.join(",");
+          return `${q.id ?? questionIndex}:${q.correctIndex ?? ""}:${q.question}:${optionSignature}`;
+        })
+        .join("||"),
+    [data.questions],
+  );
 
   const clearRevealTimer = useCallback(() => {
     if (revealTimerRef.current) {
@@ -486,6 +567,7 @@ function Quiz({
       setAlertVisible(false);
       clearRevealTimer();
       setRevealCorrect(false);
+      setSubmitError(null);
       setDisplayedIndex(nextIndex);
     },
     [clearRevealTimer, displayedIndex, total],
@@ -498,7 +580,7 @@ function Quiz({
     (res: AnswerSelection) => {
       setAnswers((prev) => ({
         ...prev,
-        [displayedIndex]: { label: res.label, isCorrect: res.isCorrect },
+        [displayedIndex]: res,
       }));
       if (isReviewMode) {
         clearRevealTimer();
@@ -509,26 +591,22 @@ function Quiz({
         }, 250);
         return;
       }
-      const isLast = displayedIndex === total - 1;
-      const newAnswers = { ...answers, [displayedIndex]: res };
-      if (isLast) {
-        const score = Object.values(newAnswers).filter(
-          (a) => a.isCorrect,
-        ).length;
-        onComplete?.(score);
-      }
     },
     [
-      answers,
       clearRevealTimer,
       displayedIndex,
       isReviewMode,
-      onComplete,
-      total,
     ],
   );
+  const shortcutKeys = useMemo(() => {
+    const maxShortcut = Math.min(current.options.length, 9);
+    return Array.from({ length: maxShortcut }, (_, i) => {
+      const key = String(i + 1);
+      return [key, `Numpad${key}`];
+    }).flat();
+  }, [current.options.length]);
   useKeyboardShortcut(
-    ["1", "2", "3", "4", "Numpad1", "Numpad2", "Numpad3", "Numpad4"],
+    shortcutKeys,
     (e) => {
       if (!e) return;
       if (isReviewMode && alertVisible) return;
@@ -536,10 +614,29 @@ function Quiz({
       const current = data.questions[displayedIndex];
       if (!current || num < 1 || num > current.options.length) return;
       answerOptionsRef.current?.selectByKey(num);
-    },
-    [data, displayedIndex, isReviewMode, alertVisible],
+    }
   );
   useEffect(() => () => clearRevealTimer(), [clearRevealTimer]);
+  useEffect(() => {
+    clearRevealTimer();
+    setDisplayedIndex(0);
+    setAnswers({});
+    setIsSubmitting(false);
+    setSubmitError(null);
+    setAlertVisible(false);
+    setDirection(1);
+    setRevealCorrect(false);
+    hasReportedAnswersRef.current = false;
+    completionReportedRef.current = false;
+  }, [clearRevealTimer, dataSignature]);
+  useEffect(() => {
+    if (!onAnswerChange) return;
+    if (!hasReportedAnswersRef.current) {
+      hasReportedAnswersRef.current = true;
+      return;
+    }
+    onAnswerChange(answers);
+  }, [answers, onAnswerChange]);
   useEffect(() => {
     clearRevealTimer();
     setRevealCorrect(false);
@@ -576,6 +673,35 @@ function Quiz({
   }, [animate, displayedIndex, scope]);
   const [before, after] = current.question.split("...");
   const isLastQuestion = displayedIndex === total - 1;
+  const quizActionLabel = isLastQuestion
+    ? isSubmitting
+      ? "Submitting..."
+      : "Submit Quiz"
+    : "Next Question";
+  const handleQuizContinue = useCallback(async () => {
+    if (!isLastQuestion) {
+      goNext();
+      return;
+    }
+
+    if (completionReportedRef.current || isSubmitting) {
+      return;
+    }
+
+    completionReportedRef.current = true;
+    setIsSubmitting(true);
+    setSubmitError(null);
+
+    try {
+      const score = Object.values(answers).filter((a) => a.isCorrect).length;
+      await onComplete?.(score);
+    } catch {
+      completionReportedRef.current = false;
+      setSubmitError("Unable to submit quiz right now. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [answers, goNext, isLastQuestion, isSubmitting, onComplete]);
   const reviewActionLabel = isLastQuestion ? "Finish Review" : "Next Question";
   const handleReviewContinue = useCallback(() => {
     if (isLastQuestion) {
@@ -586,12 +712,27 @@ function Quiz({
     }
     goToQuestion(displayedIndex + 1);
   }, [clearRevealTimer, displayedIndex, goToQuestion, isLastQuestion]);
+  const resolvedIsCorrect =
+    typeof currentAnswer?.isCorrect === "boolean" ? currentAnswer.isCorrect : null;
+  const hasAnswerCorrectness = resolvedIsCorrect !== null;
   const getBlankState = () =>
-    !currentAnswer
+    !currentAnswer || resolvedIsCorrect === null
       ? "empty"
-      : currentAnswer.isCorrect
+      : resolvedIsCorrect
         ? "correct"
         : "incorrect";
+  const feedbackContent =
+    currentAnswer && resolvedIsCorrect !== null
+      ? renderFeedback?.({
+          questionId: current.id ?? String(displayedIndex),
+          questionIndex: displayedIndex,
+          isCorrect: resolvedIsCorrect,
+          answerLabel: currentAnswer.label,
+          isLastQuestion,
+          actionLabel: reviewActionLabel,
+          onContinue: handleReviewContinue,
+        }) ?? null
+      : null;
   return (
     <div
       ref={scope}
@@ -613,7 +754,7 @@ function Quiz({
         <Question data-quiz-question>
           {before}{" "}
           <Question.Blank state={getBlankState()} mode={mode}>
-            {currentAnswer?.label ?? ""}
+            {currentAnswer?.label}
           </Question.Blank>{" "}
           {after}
         </Question>
@@ -634,36 +775,54 @@ function Quiz({
             ref={answerOptionsRef}
             mode={mode}
             correctIndex={current.correctIndex}
+            optionIds={current.optionIds}
             onAnswer={handleAnswer}
             disabled={isReviewMode && alertVisible}
             revealCorrect={revealCorrect}
-            questionId={displayedIndex}
+            questionId={current.id ?? displayedIndex}
           >
-            {current.options.map((opt) => (
-              <AnswerOptions.Option key={opt} value={opt}>
+            {current.options.map((opt, optionIndex) => {
+              const optionKey =
+                current.optionIds?.[optionIndex] ??
+                `${current.id ?? displayedIndex}-${optionIndex}-${opt}`;
+              return (
+              <AnswerOptions.Option key={optionKey} value={opt}>
                 {opt}
               </AnswerOptions.Option>
-            ))}
+            );})}
           </AnswerOptions>
 
           {mode === "quiz" ? (
-            <div className="mt-30 flex items-center justify-center">
-              <button
-                onClick={goNext}
-                className="rounded-lg bg-celestialblue-500 px-5 py-2 font-medium text-space-950 transition hover:bg-celestialblue-400 disabled:bg-space-200 disabled:text-space-400"
-                disabled={!hasSelected || displayedIndex === total - 1}
+            <div className="mt-30 flex flex-col items-center justify-center">
+              <Button
+                onClick={() => {
+                  void handleQuizContinue();
+                }}
+                variant="primary"
+                size="md"
+                static
+                isMagnetic={false}
+                className="rounded-lg px-5 py-2 font-medium text-space-950 disabled:bg-space-200 disabled:text-space-400"
+                disabled={!hasSelected || isSubmitting}
               >
-                Next Question
-              </button>
+                {quizActionLabel}
+              </Button>
+              {submitError ? (
+                <p className="mt-3 text-sm text-persianred-600">{submitError}</p>
+              ) : null}
             </div>
           ) : (
             alertVisible &&
-            currentAnswer && (
+            currentAnswer &&
+            resolvedIsCorrect !== null &&
+            (renderFeedback ? (
+              feedbackContent
+            ) : (
               <Alert
-                status={currentAnswer.isCorrect ? "success" : "failure"}
+                status={resolvedIsCorrect ? "success" : "failure"}
                 message={
                   <span>
-                    {currentAnswer.isCorrect
+                    {resolvedIsCorrect
                       ? "Correct! Continue to the next question."
                       : "Incorrect. Continue when you're ready."}
                   </span>
@@ -671,7 +830,7 @@ function Quiz({
                 actionLabel={reviewActionLabel}
                 onAction={handleReviewContinue}
               />
-            )
+            ))
           )}
         </motion.div>
       </AnimatePresence>

@@ -1,6 +1,6 @@
 import React from "react";
-import {SectionStatus} from "@/components/QuizCard";
-import Progress from "@/components/Progress";
+import {SectionStatus} from "./QuizCard";
+import Progress from "./Progress";
 
 export type LessonProgress = "locked" | "unlocked" | "completed";
 
