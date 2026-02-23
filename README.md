@@ -122,6 +122,14 @@ GitHub setup:
 1. Push to the repo (`main` or `root` branch)
 2. In GitHub repository settings, set Pages source to `GitHub Actions`
 
+## Licensing
+
+This library is proprietary and distributed under an `All Rights Reserved` license.
+
+- See `LICENSE` for the full terms.
+- No reuse, redistribution, or modification is permitted without written permission.
+- For commercial use, internal use approval, or custom licensing, contact the repository owner (`the-evise`) via GitHub.
+
 ## Project Structure
 
 ```text
