@@ -1,11 +1,30 @@
-import { withSharedConfig } from "@lunara/tailwind";
 // @ts-ignore
 import type { Config } from "tailwindcss";
 
-const config: Config = withSharedConfig({
+const mergeContent = (content: Config["content"]): Config["content"] => {
+    if (Array.isArray(content)) {
+        return Array.from(new Set(content));
+    }
+
+    return content ?? [];
+};
+
+const withLocalSharedConfig = (config: Config): Config => {
+    return {
+        ...config,
+        content: mergeContent(config.content),
+        theme: {
+            ...(config.theme ?? {}),
+            extend: {
+                ...(config.theme?.extend ?? {}),
+            },
+        },
+    };
+};
+
+const config: Config = withLocalSharedConfig({
     content: [
-        "./src/**/*.{ts,tsx}",               // internal components
-        "../../core-web/src/**/*.{ts,tsx}",  // optional, for cross-testing
+        "./src/**/*.{ts,tsx}",
     ],
     theme: {
         extend: {},

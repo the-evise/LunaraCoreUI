@@ -54,11 +54,12 @@
     "dev": "vite",
     "lint": "tsc --noEmit",
     "build": "vite build && tsc --emitDeclarationOnly",
-    "preview": "vite preview"
+    "build:pages": "vite build --mode pages",
+    "preview": "vite preview",
+    "preview:pages": "vite preview --outDir dist-pages"
   },
   "dependencies": {
     "@heroicons/react": "^2.1.5",
-    "@lunara/tailwind": "workspace:*",
     "class-variance-authority": "^0.7.1",
     "material-symbols": "^0.36.2",
     "mermaid": "^11.12.2"

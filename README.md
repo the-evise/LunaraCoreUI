@@ -43,6 +43,29 @@ export default defineConfig([
 ])
 ```
 
+## GitHub Pages (Demo App)
+
+This package has two build targets:
+
+- `pnpm --filter @lunara/core-ui build` for the library bundle (`ui/core-ui/dist`)
+- `pnpm --filter @lunara/core-ui build:pages` for the demo app static site (`ui/core-ui/dist-pages`)
+
+Workflow:
+
+- `ui/core-ui/.github/workflows/deploy-gh-pages.yml` (inside the `LunaraCoreUI` repo)
+
+Notes:
+
+- The Pages build base path is auto-derived as `/${repo-name}` on GitHub Actions.
+- Override locally with `BASE_PATH` if you want to preview a repo subpath build.
+
+PowerShell example:
+
+```powershell
+$env:BASE_PATH = "/<repo-name>"
+pnpm build:pages
+```
+
 You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
 
 ```js

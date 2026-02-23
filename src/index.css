@@ -1,4 +1,4 @@
-@import "@lunara/tailwind/theme.css";
+@import "./styles/theme.css";
 @import "tailwindcss";
 
 @tailwind base;

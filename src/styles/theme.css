@@ -1,0 +1,264 @@
+@import "tailwindcss";
+
+/* globals.css */
+@layer base {
+    @font-face {
+        font-family: "IRANSansX";
+        src: url("./assets/fonts/IRANSansX-Thin.woff") format("woff");
+        font-weight: 100;
+        font-style: normal;
+        font-display: swap;
+    }
+
+    @font-face {
+        font-family: "IRANSansX";
+        src: url("./assets/fonts/IRANSansX-UltraLight.woff") format("woff");
+        font-weight: 200;
+        font-style: normal;
+        font-display: swap;
+    }
+
+    @font-face {
+        font-family: "IRANSansX";
+        src: url("./assets/fonts/IRANSansX-Light.woff") format("woff");
+        font-weight: 300;
+        font-style: normal;
+        font-display: swap;
+    }
+
+    @font-face {
+        font-family: "IRANSansX";
+        src: url("./assets/fonts/IRANSansX-Regular.woff") format("woff");
+        font-weight: 400;
+        font-style: normal;
+        font-display: swap;
+    }
+
+    @font-face {
+        font-family: "IRANSansX";
+        src: url("./assets/fonts/IRANSansX-Medium.woff") format("woff");
+        font-weight: 500;
+        font-style: normal;
+        font-display: swap;
+    }
+
+    @font-face {
+        font-family: "IRANSansX";
+        src: url("./assets/fonts/IRANSansX-DemiBold.woff") format("woff");
+        font-weight: 600;
+        font-style: normal;
+        font-display: swap;
+    }
+
+    @font-face {
+        font-family: "IRANSansX";
+        src: url("./assets/fonts/IRANSansX-Bold.woff") format("woff");
+        font-weight: 700;
+        font-style: normal;
+        font-display: swap;
+    }
+
+    @font-face {
+        font-family: "IRANSansX";
+        src: url("./assets/fonts/IRANSansX-ExtraBold.woff") format("woff");
+        font-weight: 800;
+        font-style: normal;
+        font-display: swap;
+    }
+
+    @font-face {
+        font-family: "IRANSansX";
+        src: url("./assets/fonts/IRANSansX-Heavy.woff") format("woff");
+        font-weight: 850;
+        font-style: normal;
+        font-display: swap;
+    }
+
+    @font-face {
+        font-family: "IRANSansX";
+        src: url("./assets/fonts/IRANSansX-Black.woff") format("woff");
+        font-weight: 900;
+        font-style: normal;
+        font-display: swap;
+    }
+
+    @font-face {
+        font-family: "IRANSansX";
+        src: url("./assets/fonts/IRANSansX-ExtraBlack.woff") format("woff");
+        font-weight: 950;
+        font-style: normal;
+        font-display: swap;
+    }
+
+    body {
+        @apply bg-space-50 text-space-800 transition-colors duration-300;
+        font-family: var(--font-dmsans);
+    }
+
+    .dark body {
+        @apply bg-space-950 text-space-10;
+    }
+}
+
+
+@theme {
+    --font-dmsans: "DM Sans", sans-serif;
+    --font-iransans: "IRANSansX", sans-serif;
+    --font-iransans-body: "IRANSansX", sans-serif;
+    --font-iransans-heading: "IRANSansX", sans-serif;
+
+    --font-weight-iransans-thin: 100;
+    --font-weight-iransans-ultralight: 200;
+    --font-weight-iransans-light: 300;
+    --font-weight-iransans-regular: 400;
+    --font-weight-iransans-medium: 500;
+    --font-weight-iransans-demibold: 600;
+    --font-weight-iransans-bold: 700;
+    --font-weight-iransans-extrabold: 800;
+    --font-weight-iransans-heavy: 850;
+    --font-weight-iransans-black: 900;
+    --font-weight-iransans-extrablack: 950;
+
+    --text-xl: 1.5rem;
+    --text-xl--line-height: 2.5rem;
+    --text-xl--letter-spacing: 0;
+    --text-xl--font-weight: 400;
+
+    --text-2xl: 2rem;
+    --text-2xl--line-height: 3rem;
+    --text-2xl--letter-spacing: 0;
+    --text-2xl--font-weight: 700;
+
+    --text-3xl: 2.25rem;
+    --text-3xl--line-height: 3.375rem;
+    --text-3xl--letter-spacing: 0;
+    --text-3xl--font-weight: 700;
+
+    --text-4xl: 2.5rem;
+    --text-4xl--line-height: 3.5rem;
+    --text-4xl--letter-spacing: 0;
+    --text-4xl--font-weight: 700;
+
+    --text-section-mobile: 2rem;
+    --text-section-mobile--line-height: 4rem;
+    --text-section-mobile--letter-spacing: 0;
+    --text-section-mobile--font-weight: 400;
+
+    --text-section: 4.5rem;
+    --text-section--line-height: 6rem;
+    --text-section--letter-spacing: 0;
+    --text-section--font-weight: 300;
+
+    --text-reading-desktop: 1.5rem;
+    --text-reading-desktop--line-height: 2.25rem;
+    --text-reading-desktop--font-weight: 400;
+
+    --text-reading: 1.25rem;
+    --text-reading--line-height: 1.75rem;
+    --text-reading--font-weight: 400;
+
+    --text-point: 1.5rem;
+    --text-point--line-height: 2.25rem;
+    --text-point--font-weight: 700;
+
+    --text-description: 1.125rem;
+    --text-description--line-height: 1.875rem;
+    --text-description--font-weight: 400;
+
+    --text-badge: 2.25rem;
+    --text-badge--line-height: 3rem;
+    --text-badge--font-weight: 800;
+
+    --text-time: 2rem;
+    --text-time--line-height: 3rem;
+    --text-time--font-weight: 300;
+
+    --checkbox-icon-size-sm: 16px;
+    --checkbox-icon-size-md: 20px;
+    --checkbox-icon-size-lg: 22px;
+
+    --button-icon-size-xs: 14px;
+    --button-icon-size-sm: 16px;
+    --button-icon-size-md: 18px;
+    --button-icon-size-lg: 20px;
+    --button-icon-size-xl: 22px;
+
+    --color-celestialblue-10: oklch(0.99 0.01 205);
+    --color-celestialblue-50: oklch(0.93 0.03 230);
+    --color-celestialblue-100: oklch(0.91 0.05 214);
+    --color-celestialblue-150: oklch(0.86 0.09 220);
+    --color-celestialblue-200: oklch(0.82 0.11 224);
+    --color-celestialblue-250: oklch(0.78 0.13 230);
+    --color-celestialblue-300: oklch(0.73 0.15 236);
+    --color-celestialblue-400: oklch(0.68 0.15 240);
+    --color-celestialblue-500: oklch(0.58 0.13 243);
+    --color-celestialblue-600: oklch(0.47 0.12 245);
+    --color-celestialblue-700: oklch(0.38 0.11 251);
+    --color-celestialblue-800: oklch(0.29 0.09 256);
+    --color-celestialblue-900: oklch(0.24 0.07 260);
+    --color-celestialblue-950: oklch(0.11 0.06 263);
+
+    --color-saffron-10: oklch(0.99 0.01 93);
+    --color-saffron-50: oklch(0.96 0.05 93);
+    --color-saffron-100: oklch(0.94 0.08 92);
+    --color-saffron-150: oklch(0.91 0.10 91);
+    --color-saffron-200: oklch(0.89 0.12 89);
+    --color-saffron-250: oklch(0.86 0.14 88);
+    --color-saffron-300: oklch(0.82 0.15 86);
+    --color-saffron-400: oklch(0.76 0.14 82);
+    --color-saffron-500: oklch(0.65 0.12 79);
+    --color-saffron-600: oklch(0.51 0.10 76);
+    --color-saffron-700: oklch(0.36 0.08 73);
+    --color-saffron-800: oklch(0.28 0.06 70);
+    --color-saffron-900: oklch(0.21 0.04 68);
+    --color-saffron-950: oklch(0.14 0.03 66);
+
+    --color-space-10: oklch(1 0 265);
+    --color-space-50: oklch(0.9724 0.0115 264.51);
+    --color-space-100: oklch(0.92 0.02 264);
+    --color-space-150: oklch(0.87 0.03 263);
+    --color-space-200: oklch(0.79 0.03 264);
+    --color-space-250: oklch(0.68 0.03 262);
+    --color-space-300: oklch(0.56 0.03 263);
+    --color-space-400: oklch(0.50 0.03 263);
+    --color-space-500: oklch(0.44 0.03 264);
+    --color-space-600: oklch(0.39 0.03 264);
+    --color-space-700: oklch(0.35 0.03 264);
+    --color-space-750: oklch(0.35 0.035 266);
+    --color-space-800: oklch(0.30 0.03 265);
+    --color-space-900: oklch(0.19 0.02 265);
+    --color-space-950: oklch(0.05 0.02 265);
+
+    --color-persianred-10: oklch(0.98 0.01 40);
+    --color-persianred-50: oklch(0.95 0.02 30);
+    --color-persianred-100: oklch(0.91 0.04 29);
+    --color-persianred-150: oklch(0.84 0.09 28);
+    --color-persianred-200: oklch(0.77 0.14 27);
+    --color-persianred-250: oklch(0.68 0.16 27);
+    --color-persianred-300: oklch(0.61 0.18 26);
+    --color-persianred-400: oklch(0.53 0.17 26);
+    --color-persianred-500: oklch(0.44 0.17 26);
+    --color-persianred-600: oklch(0.41 0.16 27);
+    --color-persianred-700: oklch(0.34 0.14 29);
+    --color-persianred-800: oklch(0.30 0.12 29);
+    --color-persianred-900: oklch(0.24 0.10 30);
+    --color-persianred-950: oklch(0.13 0.05 31);
+
+    --color-emerald-10: oklch(0.99 0.03 142);
+    --color-emerald-50: oklch(0.96 0.05 160);
+    --color-emerald-100: oklch(0.94 0.08 159);
+    --color-emerald-150: oklch(0.93 0.11 158);
+    --color-emerald-200: oklch(0.91 0.14 157);
+    --color-emerald-250: oklch(0.88 0.17 157);
+    --color-emerald-300: oklch(0.86 0.19 156);
+    --color-emerald-400: oklch(0.80 0.18 156);
+    --color-emerald-500: oklch(0.67 0.16 156);
+    --color-emerald-600: oklch(0.55 0.13 154);
+    --color-emerald-700: oklch(0.44 0.11 152);
+    --color-emerald-800: oklch(0.29 0.08 146);
+    --color-emerald-900: oklch(0.19 0.05 143);
+    --color-emerald-950: oklch(0.11 0.03 142);
+}
+#root {
+    width: 100%;
+}
